@@ -99,7 +99,10 @@
         <button onclick="backToMenu()" class="btn btn-menu">🏠 Меню</button>
       </div>
 
-      <canvas id="gameCanvas" width="300" height="300"></canvas>
+      <!-- УЛУЧШЕННЫЙ CANVAS -->
+      <div class="canvas-container">
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+      </div>
 
       <div class="pause-overlay hidden" id="pauseOverlay">
         <div class="pause-content">
@@ -518,13 +521,39 @@
         background: rgba(220, 20, 60, 0.5);
       }
 
+      /* ===== УЛУЧШЕННЫЙ CANVAS КОНТЕЙНЕР ===== */
+      .canvas-container {
+        position: relative;
+        margin-bottom: 20px;
+      }
+
       #gameCanvas {
         position: relative;
         border: 4px solid white;
-        background: white;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        box-shadow: 
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 40px rgba(102, 126, 234, 0.2),
+          0 0 30px rgba(102, 126, 234, 0.4);
         cursor: none;
-        margin-bottom: 20px;
+        border-radius: 10px;
+        background-image: 
+          radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+      }
+
+      /* Дополнительный слой для эффекта глубины */
+      .canvas-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 10px;
+        background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+        pointer-events: none;
+        z-index: 1;
       }
 
       .pause-overlay {
@@ -901,7 +930,7 @@
     };
 
     // ===== ПЕРЕМЕННЫЕ ИГРЫ =====
-    let gameStarted = false;  // ГЛАВНАЯ: игра ещё не началась
+    let gameStarted = false;
     let snake = [
       {x: 150, y: 150},
       {x: 140, y: 150},
@@ -918,7 +947,7 @@
     let foodY;
     let dx = 10;
     let dy = 0;
-    let gameActive = false;  // Игра не активна до нажатия кнопки
+    let gameActive = false;
     let gamePaused = false;
     let foodCount = 0;
     let isBonusFood = false;
@@ -927,6 +956,9 @@
     let currentGameSpeed = LEVELS.normal.speed;
     let gameStartTime = Date.now();
     let soundVolume = 0.3;
+
+    // Частицы для эффектов
+    let particles = [];
 
     // Статистика
     let gameStats = {
@@ -955,7 +987,6 @@
     const gameCanvas = document.getElementById("gameCanvas");
     const ctx = gameCanvas.getContext("2d");
 
-    // Инициализация при загрузке страницы
     loadData();
     displayHighScore();
 
@@ -967,10 +998,8 @@
       document.getElementById('selectedLevelDisplay').textContent = 
         `Выбран: ${LEVELS[level].name}`;
       
-      // Обновляем выбранную опцию в селекте
       document.getElementById('levelSelect').value = level;
       
-      // Подсвечиваем кнопку
       document.querySelectorAll('.level-btn').forEach(btn => {
         btn.style.background = 'rgba(255, 255, 255, 0.1)';
         btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
@@ -987,20 +1016,16 @@
       gamePaused = false;
       gameStartTime = Date.now();
 
-      // Скрываем меню, показываем игру
       document.getElementById('mainMenu').classList.add('hidden');
       document.getElementById('gameScreen').classList.remove('hidden');
 
-      // Инициализируем игру
       document.getElementById('score').innerHTML = score;
       document.getElementById('levelSelect').value = currentLevel;
       updateSpeedDisplay();
 
-      // Создаём еду и запускаем игровой цикл
       createFood();
       main();
 
-      // Добавляем слушатель клавиш
       document.addEventListener("keydown", handleKeyPress);
     }
 
@@ -1023,7 +1048,6 @@
 
       displayMenuStats();
 
-      // Очищаем слушатель клавиш
       document.removeEventListener("keydown", handleKeyPress);
     }
 
@@ -1086,7 +1110,7 @@
 
     // ===== ОБРАБОТКА КЛАВИШ =====
     function handleKeyPress(event) {
-      if (event.keyCode === 32) {  // Spacebar
+      if (event.keyCode === 32) {
         event.preventDefault();
         togglePause();
       } else if (gameActive && !gamePaused) {
@@ -1119,7 +1143,9 @@
       setTimeout(function onTick() {
         changingDirection = false;
         clearCanvas();
+        drawBackground();  // Красивый фон
         drawGrid();
+        updateParticles(); // Обновляем частицы
         drawFood();
         advanceSnake();
         drawSnake();
@@ -1127,16 +1153,37 @@
       }, currentGameSpeed);
     }
 
-    // ===== ОЧИСТКА ЭКРАНА И СЕТКА =====
+    // ===== ОЧИСТКА ЭКРАНА И ФОН =====
     function clearCanvas() {
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-      ctx.strokeStyle = 'black';
-      ctx.strokeRect(0, 0, gameCanvas.width, gameCanvas.height);
+      
+      // Градиентный фон
+      const gradient = ctx.createLinearGradient(0, 0, gameCanvas.width, gameCanvas.height);
+      gradient.addColorStop(0, 'rgba(102, 126, 234, 0.1)');
+      gradient.addColorStop(0.5, 'rgba(118, 75, 162, 0.05)');
+      gradient.addColorStop(1, 'rgba(102, 126, 234, 0.1)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
     }
 
+    // ===== КРАСИВЫЙ ФОН =====
+    function drawBackground() {
+      // Дополнительный слой с точками
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = 0; i < gameCanvas.width; i += 30) {
+        for (let j = 0; j < gameCanvas.height; j += 30) {
+          ctx.beginPath();
+          ctx.arc(i, j, 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // ===== СЕТКА =====
     function drawGrid() {
-      ctx.strokeStyle = 'rgba(200, 200, 200, 0.15)';
+      ctx.strokeStyle = 'rgba(102, 126, 234, 0.15)';
       ctx.lineWidth = 0.5;
       
       for (let i = 0; i <= gameCanvas.width; i += 10) {
@@ -1152,21 +1199,120 @@
       }
     }
 
-    // ===== РИСОВАНИЕ ЕДЫ =====
+    // ===== РИСОВАНИЕ ЕДЫ (улучшенная версия) =====
     function drawFood() {
       if (isBonusFood) {
-        ctx.fillStyle = 'gold';
-        ctx.strokestyle = 'orange';
-        
-        const pulse = Math.sin(Date.now() / 100) * 2 + 7;
-        ctx.fillRect(foodX - pulse/2 + 7.5, foodY - pulse/2 + 7.5, pulse, pulse);
-        ctx.strokeRect(foodX, foodY, 15, 15);
+        drawBonusFood();
       } else {
-        ctx.fillStyle = 'red';
-        ctx.strokestyle = 'darkred';
-        ctx.fillRect(foodX, foodY, 10, 10);
-        ctx.strokeRect(foodX, foodY, 10, 10);
+        drawNormalFood();
       }
+    }
+
+    function drawNormalFood() {
+      // Основной круг
+      const gradient = ctx.createRadialGradient(foodX + 5, foodY + 5, 0, foodX + 5, foodY + 5, 5);
+      gradient.addColorStop(0, '#ff6b6b');
+      gradient.addColorStop(0.5, '#ff4444');
+      gradient.addColorStop(1, '#cc0000');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(foodX + 5, foodY + 5, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Блик
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.beginPath();
+      ctx.arc(foodX + 2, foodY + 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Тень
+      ctx.strokeStyle = 'rgba(200, 0, 0, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(foodX + 5, foodY + 5, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawBonusFood() {
+      // Анимация мигания
+      const pulse = Math.sin(Date.now() / 100) * 1.5 + 8;
+
+      // Внешнее свечение
+      const glowGradient = ctx.createRadialGradient(foodX + 7.5, foodY + 7.5, 0, foodX + 7.5, foodY + 7.5, pulse + 5);
+      glowGradient.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
+      glowGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(foodX + 7.5, foodY + 7.5, pulse + 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Основной круг
+      const gradient = ctx.createRadialGradient(foodX + 7.5, foodY + 7.5, 0, foodX + 7.5, foodY + 7.5, pulse);
+      gradient.addColorStop(0, '#ffff00');
+      gradient.addColorStop(0.5, '#ffa500');
+      gradient.addColorStop(1, '#ff8800');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(foodX + 7.5, foodY + 7.5, pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Блик
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.beginPath();
+      ctx.arc(foodX + 5, foodY + 4, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Звёздочки вокруг
+      drawStars(foodX + 7.5, foodY + 7.5, pulse + 2);
+    }
+
+    function drawStars(x, y, radius) {
+      const starCount = 4;
+      for (let i = 0; i < starCount; i++) {
+        const angle = (i / starCount) * Math.PI * 2 + Date.now() / 500;
+        const sx = x + Math.cos(angle) * radius;
+        const sy = y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ===== ЧАСТИЦЫ =====
+    function createParticles(x, y, isBonusFood = false) {
+      const color1 = isBonusFood ? '#ffff00' : '#ff4444';
+      const color2 = isBonusFood ? '#ffa500' : '#ff0000';
+
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          x: x + 5,
+          y: y + 5,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 30,
+          color: Math.random() > 0.5 ? color1 : color2
+        });
+      }
+    }
+
+    function updateParticles() {
+      particles = particles.filter(p => p.life-- > 0);
+      
+      particles.forEach(p => {
+        ctx.fillStyle = p.color.replace(')', `, ${p.life / 30})`).replace('rgb', 'rgba');
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.1; // гравитация
+      });
     }
 
     // ===== ДВИЖЕНИЕ ЗМЕЙКИ =====
@@ -1185,6 +1331,7 @@
 
       if (foodEaten) {
         foodCount++;
+        createParticles(foodX, foodY, isBonusFood);
         
         if (foodCount % 10 === 0) {
           score += 20;
@@ -1300,6 +1447,7 @@
       gamePaused = false;
       changingDirection = false;
       isBonusFood = false;
+      particles = [];
       currentGameSpeed = LEVELS[currentLevel].speed;
       gameStartTime = Date.now();
 
@@ -1323,16 +1471,136 @@
       });
     }
 
-    // ===== РИСОВАНИЕ ЗМЕЙКИ =====
+    // ===== РИСОВАНИЕ ЗМЕЙКИ (УЛУЧШЕННАЯ) =====
     function drawSnake() {
-      snake.forEach(drawSnakePart);
+      snake.forEach((part, index) => {
+        if (index === 0) {
+          drawSnakeHead(part);
+        } else {
+          drawSnakeBody(part, index);
+        }
+      });
     }
 
-    function drawSnakePart(snakePart) {
-      ctx.fillStyle = 'lightgreen';
-      ctx.strokestyle = 'darkgreen';
-      ctx.fillRect(snakePart.x, snakePart.y, 10, 10);
-      ctx.strokeRect(snakePart.x, snakePart.y, 10, 10);
+    function drawSnakeHead(part) {
+      // Основное тело
+      const gradient = ctx.createLinearGradient(part.x, part.y, part.x + 10, part.y + 10);
+      gradient.addColorStop(0, '#4CAF50');
+      gradient.addColorStop(0.5, '#45a049');
+      gradient.addColorStop(1, '#3d8b40');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(part.x, part.y, 10, 10, 2);
+      ctx.fill();
+
+      // Обводка
+      ctx.strokeStyle = '#2d6b30';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(part.x, part.y, 10, 10, 2);
+      ctx.stroke();
+
+      // Глаза
+      drawSnakeEyes(part);
+
+      // Свечение
+      ctx.shadowColor = 'rgba(76, 175, 80, 0.5)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+
+    function drawSnakeEyes(part) {
+      ctx.fillStyle = 'white';
+      let eyeX1, eyeX2, eyeY1, eyeY2;
+
+      if (dx > 0) { // Вправо
+        eyeX1 = part.x + 7;
+        eyeX2 = part.x + 7;
+        eyeY1 = part.y + 2;
+        eyeY2 = part.y + 7;
+      } else if (dx < 0) { // Влево
+        eyeX1 = part.x + 3;
+        eyeX2 = part.x + 3;
+        eyeY1 = part.y + 2;
+        eyeY2 = part.y + 7;
+      } else if (dy < 0) { // Вверх
+        eyeX1 = part.x + 2;
+        eyeX2 = part.x + 7;
+        eyeY1 = part.y + 3;
+        eyeY2 = part.y + 3;
+      } else { // Вниз
+        eyeX1 = part.x + 2;
+        eyeX2 = part.x + 7;
+        eyeY1 = part.y + 7;
+        eyeY2 = part.y + 7;
+      }
+
+      // Левый глаз
+      ctx.beginPath();
+      ctx.arc(eyeX1, eyeY1, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Правый глаз
+      ctx.beginPath();
+      ctx.arc(eyeX2, eyeY2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Зрачки
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(eyeX1, eyeY1, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(eyeX2, eyeY2, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+    }
+
+    function drawSnakeBody(part, index) {
+      // Градиент от яркого к тёмному
+      const progress = index / snake.length;
+      const hue = 120 - (progress * 30);
+      
+      const gradient = ctx.createLinearGradient(part.x, part.y, part.x + 10, part.y + 10);
+      gradient.addColorStop(0, '#66BB6A');
+      gradient.addColorStop(0.5, '#4CAF50');
+      gradient.addColorStop(1, '#43A047');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(part.x, part.y, 10, 10, 2);
+      ctx.fill();
+
+      // Обводка
+      ctx.strokeStyle = 'rgba(45, 107, 48, ' + (0.5 - progress * 0.3) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(part.x, part.y, 10, 10, 2);
+      ctx.stroke();
+
+      // Блик
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.1 - progress * 0.05) + ')';
+      ctx.fillRect(part.x + 1, part.y + 1, 3, 3);
+    }
+
+    // Поддержка roundRect для старых браузеров
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+        if (width < 2 * radius) radius = width / 2;
+        if (height < 2 * radius) radius = height / 2;
+        this.beginPath();
+        this.moveTo(x + radius, y);
+        this.arcTo(x + width, y, x + width, y + height, radius);
+        this.arcTo(x + width, y + height, x, y + height, radius);
+        this.arcTo(x, y + height, x, y, radius);
+        this.arcTo(x, y, x + width, y, radius);
+        this.closePath();
+        return this;
+      };
     }
 
     // ===== ИЗМЕНЕНИЕ НАПРАВЛЕНИЯ =====
@@ -1398,6 +1666,7 @@
         font-weight: bold;
         z-index: 999;
         animation: popIn 0.5s ease-out;
+        box-shadow: 0 10px 40px rgba(255, 215, 0, 0.5);
       `;
       notification.textContent = text;
       document.body.appendChild(notification);
